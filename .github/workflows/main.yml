@@ -11,7 +11,6 @@ on:
       - 'python-4/**'
   workflow_dispatch:
 
-
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
@@ -49,21 +48,15 @@ jobs:
         run: |
           echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 --decode > kubeconfig
           export KUBECONFIG=$PWD/kubeconfig
-          kubectl get nodes      - name: Deploy/update to EKS
+          kubectl get nodes
+
+      - name: Debug - list manifest files
         run: |
-          cd $GITHUB_WORKSPACE  # ensure we are at repo root
-          export KUBECONFIG=$PWD/kubeconfig
-          if kubectl get deployment ${{ matrix.app }} &> /dev/null; then
-            echo "Updating image for deployment ${{ matrix.app }}"
-            kubectl set image deployment/${{ matrix.app }} \
-              ${{ matrix.app }}=${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ matrix.app }}:latest
-          else
-            echo "Deployment ${{ matrix.app }} does not exist, applying manifest"
-            kubectl apply -f k8s/${{ matrix.app }}-deployment.yaml
-          fi
+          echo "Checking for manifest: k8s/${{ matrix.app }}-deployment.yaml"
+          ls -l k8s/
+
       - name: Deploy/update to EKS
         run: |
-          cd $GITHUB_WORKSPACE  # ensure we are at repo root
           export KUBECONFIG=$PWD/kubeconfig
           if kubectl get deployment ${{ matrix.app }} &> /dev/null; then
             echo "Updating image for deployment ${{ matrix.app }}"
@@ -71,8 +64,10 @@ jobs:
               ${{ matrix.app }}=${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ matrix.app }}:latest
           else
             echo "Deployment ${{ matrix.app }} does not exist, applying manifest"
-            kubectl apply -f k8s/${{ matrix.app }}-deployment.yaml
+            if [ -f k8s/${{ matrix.app }}-deployment.yaml ]; then
+              kubectl apply -f k8s/${{ matrix.app }}-deployment.yaml
+            else
+              echo "ERROR: Manifest file k8s/${{ matrix.app }}-deployment.yaml not found!"
+              exit 1
+            fi
           fi
-
-
-      
