@@ -47,7 +47,7 @@ jobs:
         export KUBECONFIG=$PWD/kubeconfig
 
     - name: Deploy/update to EKS
-      run: |
+      run: | 
         export KUBECONFIG=$PWD/kubeconfig
         kubectl set image deployment/${{ matrix.app }} ${{ matrix.app }}=${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ matrix.app }}:latest --record || \
         kubectl apply -f k8s/${{ matrix.app }}-deployment.yaml
