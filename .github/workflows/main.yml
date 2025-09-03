@@ -47,13 +47,14 @@ jobs:
           kubectl get nodes
 
       - name: Deploy/update to EKS
-  run: |
-    export KUBECONFIG=$PWD/kubeconfig
-    for file in python-1-deployment.yaml python-2-deployment.yaml python-3-deployment.yaml python-4-deployment.yaml; do
-      if [ -f $file ]; then
-        echo "Applying $file"
-        kubectl apply -f $file
-      else
-        echo "⚠️ WARNING: $file not found"
-      fi
-    done
+        run: |
+          export KUBECONFIG=$PWD/kubeconfig
+          for file in python-1-deployment.yaml python-2-deployment.yaml python-3-deployment.yaml python-4-deployment.yaml; do
+            if [ -f $file ]; then
+              echo "Applying $file"
+              kubectl apply -f $file
+            else
+              echo "⚠️ WARNING: $file not found"
+            fi
+          done
+
