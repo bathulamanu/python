@@ -53,7 +53,12 @@ jobs:
       - name: Deploy/update to EKS
         run: |
           export KUBECONFIG=$PWD/kubeconfig
-          # Try updating deployment image first, fallback to applying manifest
-          kubectl set image deployment/${{ matrix.app }} \
-            ${{ matrix.app }}=${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ matrix.app }}:latest --record || true
-          kubectl apply -f k8s/${{ matrix.app }}-deployment.yaml
+          # Update image if deployment exists, otherwise apply manifest
+          if kubectl get deployment ${{ matrix.app }} &> /dev/null; then
+            echo "Updating image for deployment ${{ matrix.app }}"
+            kubectl set image deployment/${{ matrix.app }} \
+              ${{ matrix.app }}=${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ matrix.app }}:latest
+          else
+            echo "Deployment ${{ matrix.app }} does not exist, applying manifest"
+            kubectl apply -f k8s/${{ matrix.app }}-deployment.yaml
+          fi
