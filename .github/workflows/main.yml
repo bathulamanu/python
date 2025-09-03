@@ -9,7 +9,7 @@ on:
       - 'python-2/**'
       - 'python-3/**'
       - 'python-4/**'
-      - '*.yaml'   # All YAMLs in root
+      - '*.yaml'   # Trigger if any deployment YAML changes
   workflow_dispatch:
 
 jobs:
@@ -33,7 +33,7 @@ jobs:
       - name: Build & push Docker images
         run: |
           for app in python-1 python-2 python-3 python-4; do
-            echo "Building Docker image for $app"
+            echo "🚀 Building Docker image for $app"
             docker build -t $app ./$app
             docker tag $app:latest ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/$app:latest
             docker push ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/$app:latest
@@ -43,17 +43,18 @@ jobs:
         run: |
           echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 --decode > kubeconfig
           export KUBECONFIG=$PWD/kubeconfig
+          kubectl cluster-info
           kubectl get nodes
 
-      - name: Deploy/update to EKS
+      - name: Deploy/Update to EKS
         run: |
           export KUBECONFIG=$PWD/kubeconfig
-          echo "Applying all deployment YAMLs"
+          echo "📦 Applying Kubernetes deployment YAMLs"
           for file in python-1-deployment.yaml python-2-deployment.yaml python-3-deployment.yaml python-4-deployment.yaml; do
             if [ -f $file ]; then
-              echo "Applying $file"
+              echo "🔹 Applying $file"
               kubectl apply -f $file
             else
-              echo "WARNING: $file not found"
+              echo "⚠️ WARNING: $file not found"
             fi
           done
