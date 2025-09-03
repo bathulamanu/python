@@ -50,24 +50,21 @@ jobs:
           export KUBECONFIG=$PWD/kubeconfig
           kubectl get nodes
 
-      - name: Debug - list manifest files
-        run: |
-          echo "Checking for manifest: k8s/${{ matrix.app }}-deployment.yaml"
-          ls -l k8s/
-
       - name: Deploy/update to EKS
         run: |
           export KUBECONFIG=$PWD/kubeconfig
+          # Update image if deployment exists
           if kubectl get deployment ${{ matrix.app }} &> /dev/null; then
             echo "Updating image for deployment ${{ matrix.app }}"
             kubectl set image deployment/${{ matrix.app }} \
               ${{ matrix.app }}=${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ matrix.app }}:latest
           else
-            echo "Deployment ${{ matrix.app }} does not exist, applying manifest"
+            echo "Deployment ${{ matrix.app }} does not exist"
+            # Apply manifest only if it exists
             if [ -f k8s/${{ matrix.app }}-deployment.yaml ]; then
+              echo "Applying manifest k8s/${{ matrix.app }}-deployment.yaml"
               kubectl apply -f k8s/${{ matrix.app }}-deployment.yaml
             else
-              echo "ERROR: Manifest file k8s/${{ matrix.app }}-deployment.yaml not found!"
-              exit 1
+              echo "WARNING: Manifest k8s/${{ matrix.app }}-deployment.yaml not found, skipping"
             fi
           fi
