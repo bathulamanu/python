@@ -1,6 +1,5 @@
 name: CI/CD Python Apps to ECR & EKS
 
-# Trigger on push to main or manual trigger
 on:
   push:
     branches:
@@ -10,7 +9,7 @@ on:
       - 'python-2/**'
       - 'python-3/**'
       - 'python-4/**'
-  workflow_dispatch:
+  workflow_dispatch:  # allows manual trigger
 
 jobs:
   build-deploy:
@@ -24,7 +23,7 @@ jobs:
       ECR_ACCOUNT_ID: ${{ secrets.ECR_ACCOUNT_ID }}
 
     steps:
-    - name: Checkout repository
+    - name: Checkout code
       uses: actions/checkout@v3
 
     - name: Configure AWS credentials
@@ -37,7 +36,7 @@ jobs:
     - name: Login to Amazon ECR
       uses: aws-actions/amazon-ecr-login@v1
 
-    - name: Build and push Docker image
+    - name: Build & push Docker image
       run: |
         docker build -t ${{ matrix.app }} ./${{ matrix.app }}
         docker tag ${{ matrix.app }}:latest ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ matrix.app }}:latest
@@ -47,11 +46,12 @@ jobs:
       run: |
         echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 --decode > kubeconfig
         export KUBECONFIG=$PWD/kubeconfig
+        kubectl get nodes  # sanity check
 
     - name: Deploy/update to EKS
       run: |
         export KUBECONFIG=$PWD/kubeconfig
-        # Update image if deployment exists, otherwise apply manifest
+        # Update deployment image if it exists, otherwise apply manifest
         kubectl set image deployment/${{ matrix.app }} \
           ${{ matrix.app }}=${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ matrix.app }}:latest --record || true
         kubectl apply -f k8s/${{ matrix.app }}-deployment.yaml
