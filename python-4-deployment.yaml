@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python-4
+  labels:
+    app: python-4
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: python-4
+  template:
+    metadata:
+      labels:
+        app: python-4
+    spec:
+      containers:
+      - name: python-4
+        image: 463932052716.dkr.ecr.eu-north-1.amazonaws.com/python-4:latest
+        ports:
+        - containerPort: 9093
+        imagePullPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: python-4-service
+spec:
+  selector:
+    app: python-4
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 9093
+      nodePort: 30004
