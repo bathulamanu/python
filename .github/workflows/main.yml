@@ -9,7 +9,7 @@ on:
       - 'python-2/**'
       - 'python-3/**'
       - 'python-4/**'
-      - 'k8s/python-microservices.yaml'
+      - '*.yaml'   # All YAMLs in root
   workflow_dispatch:
 
 jobs:
@@ -48,5 +48,12 @@ jobs:
       - name: Deploy/update to EKS
         run: |
           export KUBECONFIG=$PWD/kubeconfig
-          echo "Applying NodePort services for all Python microservices"
-          kubectl apply -f k8s/python-microservices.yaml
+          echo "Applying all deployment YAMLs"
+          for file in python-1-deployment.yaml python-2-deployment.yaml python-3-deployment.yaml python-4-deployment.yaml; do
+            if [ -f $file ]; then
+              echo "Applying $file"
+              kubectl apply -f $file
+            else
+              echo "WARNING: $file not found"
+            fi
+          done
