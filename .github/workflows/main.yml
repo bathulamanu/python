@@ -9,23 +9,16 @@ on:
       - 'python-2/**'
       - 'python-3/**'
       - 'python-4/**'
+      - 'k8s/python-microservices.yaml'
   workflow_dispatch:
 
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        app: [python-1, python-2, python-3, python-4]
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: Debug - verify secrets
-        run: |
-          echo "AWS_REGION=${{ secrets.AWS_REGION }}"
-          echo "ECR_ACCOUNT_ID=${{ secrets.ECR_ACCOUNT_ID }}"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -37,12 +30,14 @@ jobs:
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Build & push Docker image
+      - name: Build & push Docker images
         run: |
-          echo "Building Docker image for ${{ matrix.app }}"
-          docker build -t ${{ matrix.app }} ./${{ matrix.app }}
-          docker tag ${{ matrix.app }}:latest ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ matrix.app }}:latest
-          docker push ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ matrix.app }}:latest
+          for app in python-1 python-2 python-3 python-4; do
+            echo "Building Docker image for $app"
+            docker build -t $app ./$app
+            docker tag $app:latest ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/$app:latest
+            docker push ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/$app:latest
+          done
 
       - name: Setup kubectl
         run: |
@@ -53,18 +48,5 @@ jobs:
       - name: Deploy/update to EKS
         run: |
           export KUBECONFIG=$PWD/kubeconfig
-          # Update image if deployment exists
-          if kubectl get deployment ${{ matrix.app }} &> /dev/null; then
-            echo "Updating image for deployment ${{ matrix.app }}"
-            kubectl set image deployment/${{ matrix.app }} \
-              ${{ matrix.app }}=${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ matrix.app }}:latest
-          else
-            echo "Deployment ${{ matrix.app }} does not exist"
-            # Apply manifest only if it exists
-            if [ -f k8s/${{ matrix.app }}-deployment.yaml ]; then
-              echo "Applying manifest k8s/${{ matrix.app }}-deployment.yaml"
-              kubectl apply -f k8s/${{ matrix.app }}-deployment.yaml
-            else
-              echo "WARNING: Manifest k8s/${{ matrix.app }}-deployment.yaml not found, skipping"
-            fi
-          fi
+          echo "Applying NodePort services for all Python microservices"
+          kubectl apply -f k8s/python-microservices.yaml
