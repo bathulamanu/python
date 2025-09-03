@@ -9,7 +9,7 @@ on:
       - 'python-2/**'
       - 'python-3/**'
       - 'python-4/**'
-  workflow_dispatch:  # allows manual trigger
+  workflow_dispatch:
 
 jobs:
   build-deploy:
@@ -18,40 +18,42 @@ jobs:
       matrix:
         app: [python-1, python-2, python-3, python-4]
 
-    env:
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      ECR_ACCOUNT_ID: ${{ secrets.ECR_ACCOUNT_ID }}
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
+      - name: Debug - verify secrets
+        run: |
+          echo "AWS_REGION=${{ secrets.AWS_REGION }}"
+          echo "ECR_ACCOUNT_ID=${{ secrets.ECR_ACCOUNT_ID }}"
 
-    - name: Login to Amazon ECR
-      uses: aws-actions/amazon-ecr-login@v1
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Build & push Docker image
-      run: |
-        docker build -t ${{ matrix.app }} ./${{ matrix.app }}
-        docker tag ${{ matrix.app }}:latest ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ matrix.app }}:latest
-        docker push ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ matrix.app }}:latest
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
 
-    - name: Setup kubectl
-      run: |
-        echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 --decode > kubeconfig
-        export KUBECONFIG=$PWD/kubeconfig
-        kubectl get nodes  # sanity check
+      - name: Build & push Docker image
+        run: |
+          echo "Building Docker image for ${{ matrix.app }}"
+          docker build -t ${{ matrix.app }} ./${{ matrix.app }}
+          docker tag ${{ matrix.app }}:latest ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ matrix.app }}:latest
+          docker push ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ matrix.app }}:latest
 
-    - name: Deploy/update to EKS
-      run: |
-        export KUBECONFIG=$PWD/kubeconfig
-        # Update deployment image if it exists, otherwise apply manifest
-        kubectl set image deployment/${{ matrix.app }} \
-          ${{ matrix.app }}=${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ matrix.app }}:latest --record || true
-        kubectl apply -f k8s/${{ matrix.app }}-deployment.yaml
+      - name: Setup kubectl
+        run: |
+          echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 --decode > kubeconfig
+          export KUBECONFIG=$PWD/kubeconfig
+          kubectl get nodes
+
+      - name: Deploy/update to EKS
+        run: |
+          export KUBECONFIG=$PWD/kubeconfig
+          # Try updating deployment image first, fallback to applying manifest
+          kubectl set image deployment/${{ matrix.app }} \
+            ${{ matrix.app }}=${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ matrix.app }}:latest --record || true
+          kubectl apply -f k8s/${{ matrix.app }}-deployment.yaml
