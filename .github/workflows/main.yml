@@ -49,6 +49,8 @@ jobs:
       - name: Deploy/update to EKS
         run: |
           export KUBECONFIG=$PWD/kubeconfig
+
+          # Apply all deployment YAMLs
           for file in python-1-deployment.yaml python-2-deployment.yaml python-3-deployment.yaml python-4-deployment.yaml; do
             if [ -f $file ]; then
               echo "Applying $file"
@@ -58,3 +60,14 @@ jobs:
             fi
           done
 
+          # Update deployments with latest image
+          for app in python-1 python-2 python-3 python-4; do
+            echo "🔄 Updating image for $app"
+            kubectl set image deployment/$app \
+              $app=${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/$app:latest --record || true
+          done
+
+          # Restart pods to ensure new image is pulled
+          for app in python-1 python-2 python-3 python-4; do
+            kubectl rollout restart deployment/$app
+          done
