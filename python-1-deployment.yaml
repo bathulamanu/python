@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: python-1
-          image: 463932052716.dkr.ecr.eu-north-1.amazonaws.com/python-1:latest
+          image: 463932052716.dkr.ecr.eu-north-1.amazonaws.com/python-1@sha256:b8cdec6e74dc0942a669f0fcdd5b12025cf202f2e1e79406226420075edefec3
           imagePullPolicy: Always   # 👈 force pulling new image every time
           ports:
             - containerPort: 9090
